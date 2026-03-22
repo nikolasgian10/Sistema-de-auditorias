@@ -1,5 +1,5 @@
-import { useMemo, useRef, useCallback } from 'react';
-import { store } from '@/lib/store';
+import { useMemo, useRef, useCallback, useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,15 +96,41 @@ export default function Analytics() {
   const { getEffectiveMinifabrica } = useAuth();
   const effectiveSector = getEffectiveMinifabrica();
   
-  const allMachines = store.getMachines();
-  const machines = effectiveSector ? allMachines.filter(m => m.sector === effectiveSector) : allMachines;
+  const [machines, setMachines] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [auditRecords, setAuditRecords] = useState([]);
+  const [checklists, setChecklists] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [machinesRes, usersRes, auditsRes, checklistsRes] = await Promise.all([
+          supabase.from('machines').select('*'),
+          supabase.from('users').select('*'),
+          supabase.from('audit_records').select('*'),
+          supabase.from('checklists').select('*')
+        ]);
+        
+        setMachines(machinesRes.data || []);
+        setEmployees(usersRes.data || []);
+        setAuditRecords(auditsRes.data || []);
+        setChecklists(checklistsRes.data || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
+  const filteredMachines = effectiveSector ? machines.filter(m => m.sector === effectiveSector) : machines;
   const machineIds = new Set(machines.map(m => m.id));
   
-  const allAudits = store.getAudits();
-  const audits = effectiveSector ? allAudits.filter(a => machineIds.has(a.machineId)) : allAudits;
-  const allEmployees = store.getEmployees();
-  const employees = effectiveSector ? allEmployees.filter(e => e.sector === effectiveSector) : allEmployees;
-  const checklists = store.getChecklists();
+  const audits = effectiveSector ? auditRecords.filter(a => machineIds.has(a.machine_id)) : auditRecords;
+  const filteredEmployees = effectiveSector ? employees.filter(e => e.sector === effectiveSector) : employees;
   const goals = loadGoals();
 
   // Pick goals with priority:
@@ -132,7 +158,7 @@ export default function Analytics() {
   ], [audits]);
 
   const machineData = useMemo(() => machines.map(m => {
-    const ma = audits.filter(a => a.machineId === m.id);
+    const ma = audits.filter(a => a.machine_id === m.id);
     return { name: m.name.length > 18 ? m.name.substring(0, 18) + '…' : m.name, total: ma.length, conforme: ma.filter(a => a.status === 'conforme').length, naoConforme: ma.filter(a => a.status === 'nao_conforme').length, parcial: ma.filter(a => a.status === 'parcial').length };
   }), [audits, machines]);
 
@@ -177,7 +203,7 @@ export default function Analytics() {
 
   const sectorData = useMemo(() => {
     const sectors: Record<string, { setor: string; total: number; conforme: number; naoConforme: number }> = {};
-    audits.forEach(a => { const m = machines.find(x => x.id === a.machineId); if (m) { if (!sectors[m.sector]) sectors[m.sector] = { setor: m.sector, total: 0, conforme: 0, naoConforme: 0 }; sectors[m.sector].total++; if (a.status === 'conforme') sectors[m.sector].conforme++; if (a.status === 'nao_conforme') sectors[m.sector].naoConforme++; } });
+    audits.forEach(a => { const m = machines.find(x => x.id === a.machine_id); if (m) { if (!sectors[m.sector]) sectors[m.sector] = { setor: m.sector, total: 0, conforme: 0, naoConforme: 0 }; sectors[m.sector].total++; if (a.status === 'conforme') sectors[m.sector].conforme++; if (a.status === 'nao_conforme') sectors[m.sector].naoConforme++; } });
     return Object.values(sectors);
   }, [audits, machines]);
 
@@ -222,6 +248,10 @@ export default function Analytics() {
 
   const handlePrintAll = useCallback(() => { printElement(allRef.current, 'Análise Gráfica LPA - Todos os Gráficos'); }, []);
   const hasData = audits.length > 0;
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">Carregando dados...</div>;
+  }
 
   return (
     <div className="space-y-6">

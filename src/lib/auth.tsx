@@ -36,8 +36,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isLoggedIn: boolean;
   canAccessPage: (path: string) => boolean;
-  getUserPermissions: () => string[];
-  setUserPermissions: (pages: string[]) => void;
+  getUserPermissions: (userId?: string) => string[];
+  setUserPermissions: (userId: string, pages: string[]) => void;
   // Minifábrica filter: null = all, string = specific sector
   selectedMinifabrica: string | null;
   setSelectedMinifabrica: (value: string | null) => void;
@@ -148,8 +148,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
       });
-      if (error) throw error;
+      if (error) {
+        console.error('[Auth] Login falhou', {
+          email,
+          error,
+          supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+        });
+        throw error;
+      }
     } catch (error) {
+      console.error('[Auth] Erro no login', error);
       throw error;
     }
   };
@@ -172,16 +180,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return userPerms.includes(path);
   };
 
-  const getUserPermissions = (): string[] => {
-    return currentUser ? permissions[currentUser.id] || DEFAULT_ADMIN_PAGES : [];
+  const getUserPermissions = (userId?: string): string[] => {
+    const targetId = userId || (currentUser ? currentUser.id : null);
+    if (!targetId) return [];
+    return permissions[targetId] || DEFAULT_ADMIN_PAGES;
   };
 
-  const setUserPermissions = (pages: string[]) => {
-    if (currentUser) {
-      const updated = { ...permissions, [currentUser.id]: pages };
-      setPermissions(updated);
-      savePermissions(updated);
-    }
+  const setUserPermissions = (userId: string, pages: string[]) => {
+    if (!userId) return;
+    const updated = { ...permissions, [userId]: pages };
+    setPermissions(updated);
+    savePermissions(updated);
   };
 
   // Returns the effective minifábrica filter for data queries

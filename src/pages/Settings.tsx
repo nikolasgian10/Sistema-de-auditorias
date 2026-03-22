@@ -1,11 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth, UserType, ALL_PAGES } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { store, Employee } from '@/lib/store';
-function getEmployeeUserType(emp: Employee): UserType {
-  const role = emp.role.toLowerCase();
-  if (role === 'gestor') return 'gestor';
-  if (role === 'diretor') return 'diretor';
-  return 'administrativo';
-}
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +14,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, Save, Target, Users, Settings as SettingsIcon, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+
+function getEmployeeUserType(emp: Employee): UserType {
+  const role = emp.role.toLowerCase();
+  if (role === 'gestor') return 'gestor';
+  if (role === 'diretor') return 'diretor';
+  return 'administrativo';
+}
 
 interface Goal {
   id: string;
@@ -56,8 +60,24 @@ const defaultGoals: Goal[] = [
 
 export default function Settings() {
   const { userType, currentUser, getUserPermissions, setUserPermissions } = useAuth();
-  const [employees, setEmployees] = useState<Employee[]>(store.getEmployees());
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState<Goal[]>(loadGoals());
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const { data, error } = await supabase.from('users').select('*');
+        if (error) throw error;
+        setEmployees(data || []);
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEmployees();
+  }, []);
 
   const [empDialog, setEmpDialog] = useState(false);
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
@@ -183,6 +203,10 @@ export default function Settings() {
   // Available roles for dropdown
   const availableRoles = userType === 'diretor' ? ['Administrativo'] : ROLES;
   const availableSectors = userType === 'diretor' && currentUser ? [currentUser.sector] : SECTORS;
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">Carregando configurações...</div>;
+  }
 
   return (
     <div className="space-y-6">

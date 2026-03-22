@@ -21,9 +21,11 @@ Este documento explica como configurar e implantar o Sistema de Auditoria Mahle 
 ### 1.2 Configurar Autenticação
 
 1. No painel lateral, vá para **Authentication > Settings**
-2. Em "Site URL", coloque: `http://localhost:5173` (para desenvolvimento)
+2. Em "Site URL", coloque: `http://localhost:8080` (para desenvolvimento local)
 3. Em "Redirect URLs", adicione:
-   - `http://localhost:5173`
+   - `http://localhost:8080`
+   - `http://localhost:8081`
+   - `http://localhost:8082` (porta atual)
    - `https://sua-app.vercel.app` (será atualizado depois)
 
 ### 1.3 Executar SQLs no Database
@@ -435,7 +437,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 npm run dev
 ```
 
-Acesse `http://localhost:5173` e faça login com um dos usuários criados.
+Acesse a URL que aparecer no terminal (geralmente `http://localhost:8080`, `http://localhost:8081`, ou `http://localhost:8082`) e faça login com um dos usuários criados.
 
 ## 🚀 4. Implantação no Vercel
 
@@ -481,6 +483,27 @@ Clique em "Deploy" no Vercel. O projeto será construído e implantado automatic
 - **Supabase**: Vá para **Reports > Logs**
 
 ### 5.2 Problemas Comuns com Usuários
+
+#### Erro: "Failed to fetch" / "ERR_NAME_NOT_RESOLVED"
+
+**Sintomas:** Aparece erro "Failed to fetch" no login, com "ERR_NAME_NOT_RESOLVED" no console.
+
+**Possíveis causas e soluções:**
+
+1. **Projeto Supabase não existe ou foi pausado:**
+   - Vá para [supabase.com/dashboard/projects](https://supabase.com/dashboard/projects)
+   - Verifique se o projeto com URL `zmxnzqplkocseyiecoks.supabase.co` existe
+   - Se não existir, crie um novo projeto seguindo o passo 1.1
+   - Se foi pausado, reative-o clicando no projeto
+
+2. **URL incorreta no .env:**
+   - Verifique se a URL no `.env` corresponde exatamente à do painel Supabase
+   - Vá para **Settings > API** no Supabase para copiar a URL correta
+
+3. **Configuração de CORS/Autenticação:**
+   - Vá para **Authentication > Settings**
+   - Adicione `http://localhost:8080`, `http://localhost:8081`, `http://localhost:8082` nas "Redirect URLs"
+   - Defina "Site URL" como `http://localhost:8080`
 
 #### Erro: "Database error creating new user"
 
